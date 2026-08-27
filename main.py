@@ -7,8 +7,7 @@ import urllib.error
 from create_anki_deck import create_anki_package, package_filename
 from language_lab_api import MenuOption
 from scrape_flashcards import get_flashcards_for_book
-from scrape_language_books import get_book_options
-from scrape_language_selection import get_language_options
+from scrape_language_menus import get_book_options, get_language_options
 
 
 LANGUAGE_PROMPT = (

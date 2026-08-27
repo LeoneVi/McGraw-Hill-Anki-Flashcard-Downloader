@@ -7,6 +7,10 @@ from flashcard_models import Card, Chapter, Deck, Flashcard, Section
 from language_lab_api import MenuOption
 import main as application
 
+"""
+ To run all tests, use the following command:
+ .venv/bin/python -m pytest
+"""
 
 def make_deck(title: str, front: str, back: str) -> Deck:
     flashcard = Flashcard(
