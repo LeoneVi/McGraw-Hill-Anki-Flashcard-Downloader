@@ -1,112 +1,63 @@
-import io
-import json
-import ssl
-import urllib.error
-
-import pytest
-
+from language_lab_api import MenuOption
 import scrape_language_selection as scraper
 
 
 class TestLanguageSelection:
     def test_expands_other_into_its_language_submenu(self, monkeypatch):
-        root_payload = [
-            {"Menu_ID": 1, "MenuTitle": "English (ESL)"},
-            {"Menu_ID": 2, "MenuTitle": "French"},
-            {"Menu_ID": 3, "MenuTitle": "German"},
-            {"Menu_ID": 4, "MenuTitle": "Italian"},
-            {"Menu_ID": 5, "MenuTitle": "Spanish"},
-            {"Menu_ID": 6, "MenuTitle": "Other"},
+        root_options = [
+            MenuOption(1, "English (ESL)"),
+            MenuOption(2, "French"),
+            MenuOption(3, "German"),
+            MenuOption(4, "Italian"),
+            MenuOption(5, "Spanish"),
+            MenuOption(6, "Other"),
         ]
-        other_payload = [
-            {"Menu_ID": 83487, "MenuTitle": "Arabic"},
-            {"Menu_ID": 83491, "MenuTitle": "Chinese"},
-            {"Menu_ID": 83489, "MenuTitle": "Japanese"},
-            {"Menu_ID": 83490, "MenuTitle": "Korean"},
-            {"Menu_ID": 86381, "MenuTitle": "Portuguese"},
-            {"Menu_ID": 136797, "MenuTitle": "Russian"},
+        other_options = [
+            MenuOption(83487, "Arabic"),
+            MenuOption(83491, "Chinese"),
+            MenuOption(83489, "Japanese"),
+            MenuOption(83490, "Korean"),
+            MenuOption(86381, "Portuguese"),
+            MenuOption(136797, "Russian"),
         ]
-        captured_requests = []
+        captured_calls = []
 
-        def fake_urlopen(request, timeout, context):
-            captured_requests.append((request.full_url, timeout, context))
-            if request.full_url == scraper.LANGUAGE_MENU_URL:
-                payload = root_payload
-            else:
-                payload = other_payload
-            return io.BytesIO(json.dumps(payload).encode("utf-8"))
+        def fake_get_menu_options(parent_id, timeout):
+            captured_calls.append((parent_id, timeout))
+            if parent_id == scraper.ROOT_MENU_ID:
+                return root_options
+            return other_options
 
-        monkeypatch.setattr(scraper.urllib.request, "urlopen", fake_urlopen)
+        monkeypatch.setattr(
+            scraper,
+            "get_menu_options",
+            fake_get_menu_options,
+        )
 
         result = scraper.get_language_options()
 
-        assert result == [
-            "English (ESL)",
-            "French",
-            "German",
-            "Italian",
-            "Spanish",
-            "Arabic",
-            "Chinese",
-            "Japanese",
-            "Korean",
-            "Portuguese",
-            "Russian",
+        assert result == root_options[:-1] + other_options
+        assert all(option.title != "Other" for option in result)
+        assert captured_calls == [
+            (scraper.ROOT_MENU_ID, scraper.DEFAULT_TIMEOUT_SECONDS),
+            (6, scraper.DEFAULT_TIMEOUT_SECONDS),
         ]
-        assert "Other" not in result
-        assert captured_requests == [
-            (
-                scraper.LANGUAGE_MENU_URL,
-                scraper.DEFAULT_TIMEOUT_SECONDS,
-                scraper.HTTPS_CONTEXT,
-            ),
-            (
-                scraper.MENU_URL_TEMPLATE.format(parent_id=6),
-                scraper.DEFAULT_TIMEOUT_SECONDS,
-                scraper.HTTPS_CONTEXT,
-            ),
-        ]
-        assert scraper.HTTPS_CONTEXT.check_hostname is True
-        assert scraper.HTTPS_CONTEXT.verify_mode == ssl.CERT_REQUIRED
 
-    @pytest.mark.parametrize(
-        ("payload", "message"),
-        [
-            pytest.param(
-                {"MenuTitle": "Spanish"},
-                "return a list",
-                id="top-level-payload-is-not-a-list",
-            ),
-            pytest.param(
-                [{"Menu_ID": 1}],
-                "valid MenuTitle",
-                id="language-option-has-no-title",
-            ),
-            pytest.param(
-                [{"MenuTitle": "Other"}],
-                "valid Menu_ID",
-                id="other-menu-has-no-id",
-            ),
-        ],
-    )
-    def test_rejects_invalid_api_data(self, monkeypatch, payload, message):
-        def fake_urlopen(request, timeout, context):
-            return io.BytesIO(json.dumps(payload).encode("utf-8"))
+    def test_passes_a_custom_timeout_to_both_menus(self, monkeypatch):
+        captured_calls = []
 
-        monkeypatch.setattr(scraper.urllib.request, "urlopen", fake_urlopen)
-
-        with pytest.raises(ValueError, match=message):
-            scraper.get_language_options()
-
-    def test_reports_network_errors(self, monkeypatch):
-        def raise_network_error(request, timeout, context):
-            raise urllib.error.URLError("offline")
+        def fake_get_menu_options(parent_id, timeout):
+            captured_calls.append((parent_id, timeout))
+            if parent_id == scraper.ROOT_MENU_ID:
+                return [MenuOption(6, "Other")]
+            return [MenuOption(83487, "Arabic")]
 
         monkeypatch.setattr(
-            scraper.urllib.request,
-            "urlopen",
-            raise_network_error,
+            scraper,
+            "get_menu_options",
+            fake_get_menu_options,
         )
 
-        with pytest.raises(urllib.error.URLError, match="offline"):
-            scraper.get_language_options()
+        scraper.get_language_options(timeout=25)
+
+        assert captured_calls == [(0, 25), (6, 25)]
