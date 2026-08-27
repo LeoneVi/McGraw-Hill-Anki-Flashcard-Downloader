@@ -17,6 +17,7 @@ from flashcard_models import Card, Chapter, Deck, Flashcard, Section
 
 def make_pmp_basic_german_deck(
     side_a_audio: str | None = None,
+    side_b_audio: str | None = None,
     tts_audio: bool = True,
 ) -> Deck:
     flashcard = Flashcard(
@@ -25,7 +26,7 @@ def make_pmp_basic_german_deck(
             side_a="ich",
             side_b="I",
             side_a_audio=side_a_audio,
-            side_b_audio=None,
+            side_b_audio=side_b_audio,
             chapter_id=1550,
             section_id=11267,
             chapter_title="2. Vowel combinations and consonant combinations",
@@ -91,9 +92,7 @@ class TestCreateAnkiDeck:
             assert note["SideAAudio"] == (
                 "[anki:tts lang=de_DE]ich[/anki:tts]"
             )
-            assert note["SideBAudio"] == (
-                "[anki:tts lang=en_US]I[/anki:tts]"
-            )
+            assert note["SideBAudio"] == ""
             assert note["Chapter"] == (
                 "2. Vowel combinations and consonant combinations"
             )
@@ -105,9 +104,7 @@ class TestCreateAnkiDeck:
 
             template = note.note_type()["tmpls"][0]
             assert template["qfmt"] == "{{Front}}{{SideAAudio}}"
-            assert template["afmt"] == (
-                "{{FrontSide}}<hr id=answer>{{Back}}{{SideBAudio}}"
-            )
+            assert template["afmt"] == "{{FrontSide}}<hr id=answer>{{Back}}"
 
             card = note.cards()[0]
             assert card.question_av_tags() == [
@@ -119,15 +116,7 @@ class TestCreateAnkiDeck:
                     other_args=[],
                 )
             ]
-            assert card.answer_av_tags() == [
-                TTSTag(
-                    field_text="I",
-                    lang="en_US",
-                    voices=[],
-                    speed=1.0,
-                    other_args=[],
-                )
-            ]
+            assert card.answer_av_tags() == []
         finally:
             collection.close()
 
@@ -148,6 +137,7 @@ class TestCreateAnkiDeck:
         result = create_anki_package(
             make_pmp_basic_german_deck(
                 side_a_audio="https://example.com/audio/ich.mp3",
+                side_b_audio="https://example.com/audio/I.mp3",
                 tts_audio=False,
             ),
             tmp_path / "recorded.apkg",
