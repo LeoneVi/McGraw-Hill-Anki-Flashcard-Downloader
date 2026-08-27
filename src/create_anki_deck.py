@@ -1,6 +1,7 @@
 """Create a downloadable Anki deck package from a scraped deck."""
 
 import hashlib
+from enum import Enum
 from pathlib import Path
 import re
 from tempfile import TemporaryDirectory
@@ -16,6 +17,7 @@ from anki.utils import base91
 
 from flashcard_models import Deck, Flashcard
 from language_lab_api import DEFAULT_TIMEOUT_SECONDS, get_bytes
+from progress_reporting import ProgressCallback, report_progress
 
 
 NOTETYPE_NAME = "McGraw-Hill Language Lab"
@@ -32,6 +34,13 @@ NOTETYPE_FIELDS = (
     "SectionID",
     "Source",
 )
+
+
+class TTSAudioMode(Enum):
+    """Choose which translated sides receive generated Anki TTS."""
+
+    SELECTED_LANGUAGE_ONLY = "selected_language_only"
+    BOTH_LANGUAGES = "both_languages"
 
 
 def package_filename(deck_title: str) -> str:
@@ -82,6 +91,7 @@ def _audio_reference(
     side: str,
     timeout: int,
     downloaded_audio: dict[str, str],
+    tts_mode: TTSAudioMode,
 ) -> str:
     card = flashcard.card
     if side == "a":
@@ -108,7 +118,11 @@ def _audio_reference(
             downloaded_audio[audio_url] = filename
         return f"[sound:{filename}]"
 
-    if card.tts_audio:
+    # Language Lab places the language being studied on Side A and the
+    # learner's translation on Side B. Recorded audio is retained above,
+    # regardless of this TTS preference.
+    tts_is_selected = side == "a" or tts_mode is TTSAudioMode.BOTH_LANGUAGES
+    if card.tts_audio and tts_is_selected:
         return _tts_reference(tts_text, language)
 
     return ""
@@ -157,6 +171,7 @@ def _add_flashcard_note(
     flashcard: Flashcard,
     timeout: int,
     downloaded_audio: dict[str, str],
+    tts_mode: TTSAudioMode,
 ) -> None:
     note = collection.new_note(notetype)
     fields = flashcard.anki_fields()
@@ -166,6 +181,7 @@ def _add_flashcard_note(
         "a",
         timeout,
         downloaded_audio,
+        tts_mode,
     )
     fields["SideBAudio"] = _audio_reference(
         collection,
@@ -173,6 +189,7 @@ def _add_flashcard_note(
         "b",
         timeout,
         downloaded_audio,
+        tts_mode,
     )
     for field_name, value in fields.items():
         note[field_name] = value
@@ -190,10 +207,14 @@ def create_anki_package(
     deck: Deck,
     output_path: str | Path,
     timeout: int = DEFAULT_TIMEOUT_SECONDS,
+    tts_mode: TTSAudioMode = TTSAudioMode.BOTH_LANGUAGES,
+    progress_callback: ProgressCallback | None = None,
 ) -> Path:
     """Create a modern .apkg file and return its absolute path."""
     if deck.card_count == 0:
         raise ValueError("Cannot create an Anki package from an empty deck.")
+    if not isinstance(tts_mode, TTSAudioMode):
+        raise ValueError("A valid TTS audio mode must be selected.")
 
     destination = Path(output_path).expanduser().resolve()
     if destination.suffix.lower() != ".apkg":
@@ -207,8 +228,25 @@ def create_anki_package(
             notetype = _create_notetype(collection)
             deck_id = _create_deck(collection, deck.title)
             downloaded_audio = {}
+            total_cards = deck.card_count
+            progress_interval = max(1, total_cards // 100)
 
-            for flashcard in deck.iter_flashcards():
+            report_progress(
+                progress_callback,
+                f"Creating Anki package: 0/{total_cards} cards (0%)",
+            )
+
+            for card_number, flashcard in enumerate(
+                deck.iter_flashcards(),
+                start=1,
+            ):
+                if card_number == 1 or card_number % progress_interval == 0:
+                    percentage = int((card_number - 1) * 100 / total_cards)
+                    report_progress(
+                        progress_callback,
+                        "Creating Anki package: "
+                        f"{card_number}/{total_cards} cards ({percentage}%)",
+                    )
                 _add_flashcard_note(
                     collection,
                     notetype,
@@ -216,7 +254,13 @@ def create_anki_package(
                     flashcard,
                     timeout,
                     downloaded_audio,
+                    tts_mode,
                 )
+
+            report_progress(
+                progress_callback,
+                f"Creating Anki package: {total_cards}/{total_cards} cards (100%)",
+            )
 
             options = ExportAnkiPackageOptions(
                 with_scheduling=False,
@@ -224,11 +268,13 @@ def create_anki_package(
                 with_media=True,
                 legacy=False,
             )
+            report_progress(progress_callback, "Finalizing Anki package...")
             collection.export_anki_package(
                 out_path=str(destination),
                 options=options,
                 limit=DeckIdLimit(deck_id),
             )
+            report_progress(progress_callback, "Anki package is ready.")
         finally:
             collection.close()
 

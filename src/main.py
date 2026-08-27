@@ -4,8 +4,9 @@ import curses
 from pathlib import Path
 import urllib.error
 
-from create_anki_deck import create_anki_package, package_filename
+from create_anki_deck import TTSAudioMode, create_anki_package, package_filename
 from language_lab_api import MenuOption
+from progress_reporting import TerminalProgress
 from scrape_flashcards import get_flashcards_for_book
 from scrape_language_menus import get_book_options, get_language_options
 
@@ -18,6 +19,7 @@ BOOK_PROMPT_TEMPLATE = (
     "(Up/Down to move, Enter to choose, q to quit)"
 )
 RETURN_TO_LANGUAGES = "Return to language selection"
+TTS_PROMPT = "Which cards would you like to have TTS with?"
 
 
 def _selection_screen(screen, options: list[str], prompt: str) -> int:
@@ -116,8 +118,43 @@ def select_book(
     return books[selected_index]
 
 
+def tts_option_titles(language: MenuOption) -> list[str]:
+    """Return human-readable TTS choices for the selected language."""
+    return [
+        f"Only {language.title}",
+        f"Both {language.title} and my language",
+    ]
+
+
+def select_tts_mode(language: MenuOption) -> TTSAudioMode:
+    """Ask whether TTS should be used on one or both card sides."""
+    modes = [
+        TTSAudioMode.SELECTED_LANGUAGE_ONLY,
+        TTSAudioMode.BOTH_LANGUAGES,
+    ]
+    selected_index = select_option(tts_option_titles(language), TTS_PROMPT)
+    return modes[selected_index]
+
+
+def tts_mode_title(language: MenuOption, mode: TTSAudioMode) -> str:
+    """Describe a saved TTS choice using the selected language's name."""
+    option_index = 0 if mode is TTSAudioMode.SELECTED_LANGUAGE_ONLY else 1
+    return tts_option_titles(language)[option_index]
+
+
+def prompt_output_directory(default_directory: Path) -> Path:
+    """Ask where to save the deck, using the project output by default."""
+    entered_path = input(
+        f"Type output directory (default is {default_directory}): "
+    ).strip()
+    if not entered_path:
+        return default_directory.resolve()
+    return Path(entered_path).expanduser().resolve()
+
+
 def main() -> None:
-    """Prompt for a language and book until a book is selected."""
+    """Prompt for deck choices, scrape the book, and create its package."""
+    progress = TerminalProgress()
     try:
         languages = get_language_options()
 
@@ -129,27 +166,39 @@ def main() -> None:
             if selected_book is None:
                 continue
 
-            print(f"\nScraping flashcards for {selected_book.title}...")
+            selected_tts_mode = select_tts_mode(selected_language)
+            project_root = Path(__file__).resolve().parent.parent
+            output_directory = prompt_output_directory(project_root / "output")
+
+            progress.update(f"Starting scrape for {selected_book.title}...")
             deck = get_flashcards_for_book(
                 selected_book.menu_id,
                 selected_book.title,
+                progress_callback=progress.update,
             )
-            project_root = Path(__file__).resolve().parent.parent
-            output_path = project_root / "output" / package_filename(deck.title)
-            package_path = create_anki_package(deck, output_path)
+            output_path = output_directory / package_filename(deck.title)
+            package_path = create_anki_package(
+                deck,
+                output_path,
+                tts_mode=selected_tts_mode,
+                progress_callback=progress.update,
+            )
             break
     except urllib.error.URLError as error:
         raise SystemExit(
-            f"Unable to download Language Lab options: {error.reason}"
+            f"Unable to download Language Lab data: {error.reason}"
         ) from error
     except ValueError as error:
         raise SystemExit(str(error)) from error
     except KeyboardInterrupt:
         print("\nSelection cancelled.")
         return
+    finally:
+        progress.finish()
 
     print(f"\nSelected language: {selected_language.title}")
     print(f"Selected book: {selected_book.title}")
+    print(f"TTS: {tts_mode_title(selected_language, selected_tts_mode)}")
     print(f"Created {deck.card_count} Anki cards:")
     print(package_path)
 

@@ -11,7 +11,11 @@ from anki.collection import (
 )
 from anki.sound import SoundOrVideoTag, TTSTag
 import create_anki_deck as creator
-from create_anki_deck import create_anki_package, package_filename
+from create_anki_deck import (
+    TTSAudioMode,
+    create_anki_package,
+    package_filename,
+)
 from flashcard_models import Card, Chapter, Deck, Flashcard, Section
 
 
@@ -141,6 +145,43 @@ class TestCreateAnkiDeck:
         finally:
             collection.close()
 
+    def test_selected_language_only_suppresses_the_translation_tts(
+        self,
+        tmp_path,
+    ):
+        progress_messages = []
+        result = create_anki_package(
+            make_pmp_basic_german_deck(),
+            tmp_path / "german-only.apkg",
+            tts_mode=TTSAudioMode.SELECTED_LANGUAGE_ONLY,
+            progress_callback=progress_messages.append,
+        )
+
+        collection = Collection(str(tmp_path / "german-only-verify.anki2"))
+        try:
+            collection.import_anki_package(
+                ImportAnkiPackageRequest(
+                    package_path=str(result),
+                    options=ImportAnkiPackageOptions(
+                        merge_notetypes=True,
+                        with_scheduling=False,
+                        with_deck_configs=False,
+                    ),
+                )
+            )
+            note = collection.get_note(collection.find_notes("")[0])
+
+            assert note["SideAAudio"] == (
+                "[anki:tts lang=de_DE]ich[/anki:tts]"
+            )
+            assert note["SideBAudio"] == ""
+            assert progress_messages[0] == (
+                "Creating Anki package: 0/1 cards (0%)"
+            )
+            assert progress_messages[-1] == "Anki package is ready."
+        finally:
+            collection.close()
+
     def test_downloads_packages_and_references_recorded_audio(
         self,
         monkeypatch,
@@ -158,10 +199,11 @@ class TestCreateAnkiDeck:
             make_pmp_basic_german_deck(
                 side_a_audio="https://example.com/audio/ich.mp3",
                 side_b_audio="https://example.com/audio/I.mp3",
-                tts_audio=False,
+                tts_audio=True,
                 source="Audio",
             ),
             tmp_path / "recorded.apkg",
+            tts_mode=TTSAudioMode.SELECTED_LANGUAGE_ONLY,
         )
 
         assert captured_downloads == [

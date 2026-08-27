@@ -91,12 +91,24 @@ class TestTerminalMenu:
         with pytest.raises(ValueError, match="No menu options"):
             application.select_option([], "Choose an option")
 
+    def test_progress_replaces_one_terminal_line(self, capsys):
+        progress = application.TerminalProgress()
+
+        progress.update("Scraping chapter 1")
+        progress.update("Done")
+        progress.finish()
+
+        assert capsys.readouterr().out == (
+            "\rScraping chapter 1\rDone              \n"
+        )
+
 
 class TestLanguageAndBookSelection:
     def test_main_fetches_books_for_language_and_prints_selection(
         self,
         monkeypatch,
         capsys,
+        tmp_path,
     ):
         languages = [
             MenuOption(1, "English (ESL)"),
@@ -109,6 +121,18 @@ class TestLanguageAndBookSelection:
         received_language_ids = []
         received_book_ids = []
         received_output_paths = []
+        received_tts_languages = []
+        received_tts_modes = []
+        progress_messages = []
+
+        class FakeProgress:
+            def update(self, message):
+                progress_messages.append(message)
+
+            def finish(self):
+                pass
+
+        monkeypatch.setattr(application, "TerminalProgress", FakeProgress)
 
         monkeypatch.setattr(
             application,
@@ -136,8 +160,29 @@ class TestLanguageAndBookSelection:
             lambda language, options: options[0],
         )
 
-        def fake_get_flashcards_for_book(book_id, book_title):
+        def fake_select_tts_mode(language):
+            received_tts_languages.append(language)
+            return application.TTSAudioMode.SELECTED_LANGUAGE_ONLY
+
+        monkeypatch.setattr(
+            application,
+            "select_tts_mode",
+            fake_select_tts_mode,
+        )
+        selected_output_directory = tmp_path / "my decks"
+        monkeypatch.setattr(
+            application,
+            "prompt_output_directory",
+            lambda default_directory: selected_output_directory,
+        )
+
+        def fake_get_flashcards_for_book(
+            book_id,
+            book_title,
+            progress_callback,
+        ):
             received_book_ids.append((book_id, book_title))
+            progress_callback("Scraped cards")
             return make_deck(book_title, "hola", "hello")
 
         monkeypatch.setattr(
@@ -146,9 +191,16 @@ class TestLanguageAndBookSelection:
             fake_get_flashcards_for_book,
         )
 
-        def fake_create_anki_package(deck, output_path):
+        def fake_create_anki_package(
+            deck,
+            output_path,
+            tts_mode,
+            progress_callback,
+        ):
             received_output_paths.append(output_path)
-            return Path("/tmp/Complete_Medical_Spanish.apkg")
+            received_tts_modes.append(tts_mode)
+            progress_callback("Created package")
+            return output_path
 
         monkeypatch.setattr(
             application,
@@ -160,17 +212,25 @@ class TestLanguageAndBookSelection:
 
         assert received_language_ids == [5]
         assert received_book_ids == [(43, "Complete Medical Spanish")]
+        assert received_tts_languages == [languages[1]]
+        assert received_tts_modes == [
+            application.TTSAudioMode.SELECTED_LANGUAGE_ONLY
+        ]
         assert received_output_paths == [
-            Path(application.__file__).resolve().parent.parent
-            / "output"
+            selected_output_directory
             / "Complete_Medical_Spanish.apkg"
         ]
+        assert progress_messages == [
+            "Starting scrape for Complete Medical Spanish...",
+            "Scraped cards",
+            "Created package",
+        ]
         assert capsys.readouterr().out == (
-            "\nScraping flashcards for Complete Medical Spanish...\n"
             "\nSelected language: Spanish\n"
             "Selected book: Complete Medical Spanish\n"
+            "TTS: Only Spanish\n"
             "Created 1 Anki cards:\n"
-            "/tmp/Complete_Medical_Spanish.apkg\n"
+            f"{selected_output_directory / 'Complete_Medical_Spanish.apkg'}\n"
         )
 
     def test_return_option_goes_back_to_language_selection(
@@ -215,8 +275,18 @@ class TestLanguageAndBookSelection:
         )
         monkeypatch.setattr(
             application,
+            "select_tts_mode",
+            lambda language: application.TTSAudioMode.BOTH_LANGUAGES,
+        )
+        monkeypatch.setattr(
+            application,
+            "prompt_output_directory",
+            lambda default_directory: Path("/tmp"),
+        )
+        monkeypatch.setattr(
+            application,
             "get_flashcards_for_book",
-            lambda book_id, book_title: make_deck(
+            lambda book_id, book_title, progress_callback: make_deck(
                 book_title,
                 "bonjour",
                 "hello",
@@ -225,7 +295,9 @@ class TestLanguageAndBookSelection:
         monkeypatch.setattr(
             application,
             "create_anki_package",
-            lambda deck, output_path: Path("/tmp/French_Grammar.apkg"),
+            lambda deck, output_path, **kwargs: Path(
+                "/tmp/French_Grammar.apkg"
+            ),
         )
 
         application.main()
@@ -253,3 +325,56 @@ class TestLanguageAndBookSelection:
             application.RETURN_TO_LANGUAGES,
         ]
         assert "Spanish" in received_menu["prompt"]
+
+    def test_tts_menu_uses_the_remembered_language(self, monkeypatch):
+        language = MenuOption(4, "German")
+        received_menu = {}
+
+        def fake_select_option(options, prompt):
+            received_menu["options"] = options
+            received_menu["prompt"] = prompt
+            return 1
+
+        monkeypatch.setattr(application, "select_option", fake_select_option)
+
+        result = application.select_tts_mode(language)
+
+        assert result is application.TTSAudioMode.BOTH_LANGUAGES
+        assert received_menu == {
+            "options": ["Only German", "Both German and my language"],
+            "prompt": application.TTS_PROMPT,
+        }
+
+    def test_blank_output_uses_the_project_output_directory(
+        self,
+        monkeypatch,
+        tmp_path,
+    ):
+        default_directory = tmp_path / "output"
+        captured_prompt = []
+
+        def fake_input(prompt):
+            captured_prompt.append(prompt)
+            return ""
+
+        monkeypatch.setattr("builtins.input", fake_input)
+
+        result = application.prompt_output_directory(default_directory)
+
+        assert result == default_directory.resolve()
+        assert str(default_directory) in captured_prompt[0]
+
+    def test_typed_output_directory_overrides_the_default(
+        self,
+        monkeypatch,
+        tmp_path,
+    ):
+        selected_directory = tmp_path / "custom decks"
+        monkeypatch.setattr(
+            "builtins.input",
+            lambda prompt: str(selected_directory),
+        )
+
+        result = application.prompt_output_directory(tmp_path / "output")
+
+        assert result == selected_directory.resolve()

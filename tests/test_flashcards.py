@@ -324,6 +324,7 @@ class TestPmpBasicGermanFlashcards:
         )
         requested_flashcard_decks = []
         requested_audio_decks = []
+        progress_messages = []
 
         monkeypatch.setattr(
             scraper,
@@ -398,6 +399,7 @@ class TestPmpBasicGermanFlashcards:
         result = scraper.get_flashcards_for_book(
             PMP_BASIC_GERMAN_BOOK_ID,
             "PMP Basic German",
+            progress_callback=progress_messages.append,
         )
 
         assert result == Deck(
@@ -499,6 +501,18 @@ class TestPmpBasicGermanFlashcards:
                 unmatched_audio_section_title,
             ),
         ]
+        assert progress_messages[0] == "Scanning PMP Basic German menus..."
+        assert any(
+            message.startswith("Scraping Flashcards: chapter 1/1")
+            for message in progress_messages
+        )
+        assert any(
+            "Scraping Audio:" in message
+            for message in progress_messages
+        )
+        assert progress_messages[-1] == (
+            "Scraped 3 cards from PMP Basic German."
+        )
 
     def test_formats_unicode_and_source_metadata_as_json(self):
         flashcard = Flashcard(

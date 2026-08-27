@@ -21,6 +21,7 @@ from language_lab_api import (
     get_json,
     get_menu_options,
 )
+from progress_reporting import ProgressCallback, report_progress
 
 
 FLASHCARD_URL_TEMPLATE = (
@@ -243,9 +244,16 @@ def _merge_source_menu(
     timeout: int,
     chapters: list[Chapter],
     hierarchy_by_title: dict[str, tuple[Chapter, dict[str, Section]]],
+    progress_callback: ProgressCallback | None,
 ) -> None:
     """Merge one content source into the shared chapter/section tree."""
-    for chapter_option in get_menu_options(source_menu.menu_id, timeout):
+    chapter_options = get_menu_options(source_menu.menu_id, timeout)
+    for chapter_number, chapter_option in enumerate(chapter_options, start=1):
+        report_progress(
+            progress_callback,
+            f"Scraping {source_menu.title}: chapter "
+            f"{chapter_number}/{len(chapter_options)} — {chapter_option.title}",
+        )
         chapter_key = _matching_key(chapter_option.title)
         hierarchy = hierarchy_by_title.get(chapter_key)
 
@@ -288,6 +296,11 @@ def _merge_source_menu(
                 chapter.sections.append(section)
 
             for source_deck_id in source_deck_ids:
+                report_progress(
+                    progress_callback,
+                    f"Scraping {source_menu.title}: "
+                    f"{chapter_option.title} / {section_option.title}",
+                )
                 section.flashcards.extend(
                     deck_loader(
                         menu_id=source_deck_id,
@@ -304,6 +317,7 @@ def get_flashcards_for_book(
     book_id: int,
     book_title: str,
     timeout: int = DEFAULT_TIMEOUT_SECONDS,
+    progress_callback: ProgressCallback | None = None,
 ) -> Deck:
     """Return Flashcards and Audio cards in one matched hierarchy."""
     if not isinstance(book_id, int) or isinstance(book_id, bool) or book_id <= 0:
@@ -311,6 +325,7 @@ def get_flashcards_for_book(
     if not isinstance(book_title, str) or not book_title.strip():
         raise ValueError("A selected book must have a title.")
 
+    report_progress(progress_callback, f"Scanning {book_title} menus...")
     book_options = get_menu_options(book_id, timeout)
     chapters = []
     hierarchy_by_title = {}
@@ -343,6 +358,7 @@ def get_flashcards_for_book(
                 timeout,
                 chapters,
                 hierarchy_by_title,
+                progress_callback,
             )
 
     if not found_content_menu:
@@ -355,7 +371,12 @@ def get_flashcards_for_book(
             "The selected book does not have any Flashcards or Audio cards."
         )
 
-    return Deck(title=book_title, chapters=chapters)
+    deck = Deck(title=book_title, chapters=chapters)
+    report_progress(
+        progress_callback,
+        f"Scraped {deck.card_count} cards from {book_title}.",
+    )
+    return deck
 
 
 def flashcards_to_json(flashcards: Iterable[Flashcard]) -> str:
