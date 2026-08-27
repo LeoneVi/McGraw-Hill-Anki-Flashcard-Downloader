@@ -65,13 +65,3 @@ def get_language_options(
         languages.extend(option["MenuTitle"] for option in other_options)
 
     return languages
-
-
-def main() -> None:
-    """Print one home-page language option per line."""
-    for language in get_language_options():
-        print(language)
-
-
-if __name__ == "__main__":
-    main()

@@ -5,7 +5,7 @@ import urllib.error
 
 import pytest
 
-import scraper
+import scrape_language_selection as scraper
 
 
 class TestLanguageSelection:
@@ -110,14 +110,3 @@ class TestLanguageSelection:
 
         with pytest.raises(urllib.error.URLError, match="offline"):
             scraper.get_language_options()
-
-    def test_prints_one_language_per_line(self, monkeypatch, capsys):
-        monkeypatch.setattr(
-            scraper,
-            "get_language_options",
-            lambda: ["English (ESL)", "Spanish", "Arabic"],
-        )
-
-        scraper.main()
-
-        assert capsys.readouterr().out == "English (ESL)\nSpanish\nArabic\n"
