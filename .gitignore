@@ -1,0 +1,27 @@
+# Virtual environments
+.venv/
+venv/
+
+# Python caches and build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+build/
+dist/
+*.egg-info/
+
+# Test and coverage artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local configuration
+.env
+.env.*
+
+# Generated scraper output
+output/
+
+# IDE and operating-system files
+.idea/
+.DS_Store
