@@ -23,6 +23,8 @@ NOTETYPE_FIELDS = (
     "SideAAudio",
     "SideBAudio",
     "SourceCardID",
+    "Chapter",
+    "Section",
     "ChapterID",
     "SectionID",
 )
@@ -45,6 +47,11 @@ def _stable_integer_id(namespace: str, value: str) -> int:
 def _stable_note_guid(flashcard: Flashcard) -> str:
     note_id = _stable_integer_id("mhe-card", str(flashcard.card.card_id))
     return base91(note_id)
+
+
+def _anki_tag_component(label: str) -> str:
+    """Keep a source label readable while making it one valid Anki tag."""
+    return re.sub(r"\s+", "_", label.strip()).replace("::", "_")
 
 
 def _create_notetype(collection: Collection):
@@ -83,8 +90,8 @@ def _add_flashcard_note(
 
     note.guid = _stable_note_guid(flashcard)
     note.tags = [
-        f"mhe::chapter::{flashcard.card.chapter_id}",
-        f"mhe::section::{flashcard.card.section_id}",
+        f"mhe::chapter::{_anki_tag_component(flashcard.card.chapter_title)}",
+        f"mhe::section::{_anki_tag_component(flashcard.card.section_title)}",
     ]
     collection.add_note(note, deck_id)
 

@@ -29,6 +29,8 @@ def get_flashcard_deck(
     menu_id: int,
     chapter_id: int,
     section_id: int,
+    chapter_title: str,
+    section_title: str,
     timeout: int = DEFAULT_TIMEOUT_SECONDS,
 ) -> list[Flashcard]:
     """Download one study-mode deck and retain its source hierarchy."""
@@ -62,6 +64,8 @@ def get_flashcard_deck(
             side_b_audio=_optional_text(card_data, "SideBAudio"),
             chapter_id=chapter_id,
             section_id=section_id,
+            chapter_title=chapter_title,
+            section_title=section_title,
         )
         flashcards.append(Flashcard(card=card))
 
@@ -130,10 +134,12 @@ def get_flashcards_for_book(
                 for study_deck_id in study_deck_ids:
                     section_flashcards.extend(
                         get_flashcard_deck(
-                            study_deck_id,
-                            chapter_option.menu_id,
-                            section_option.menu_id,
-                            timeout,
+                            menu_id=study_deck_id,
+                            chapter_id=chapter_option.menu_id,
+                            section_id=section_option.menu_id,
+                            chapter_title=chapter_option.title,
+                            section_title=section_option.title,
+                            timeout=timeout,
                         )
                     )
 

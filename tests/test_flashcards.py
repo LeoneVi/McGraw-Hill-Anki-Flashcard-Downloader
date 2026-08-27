@@ -12,6 +12,10 @@ PMP_BASIC_GERMAN_FLASHCARDS_MENU_ID = 30912
 PMP_BASIC_GERMAN_CHAPTER_ID = 1550
 PMP_BASIC_GERMAN_SECTION_ID = 11267
 PMP_BASIC_GERMAN_STUDY_DECK_ID = 23947
+PMP_BASIC_GERMAN_CHAPTER_TITLE = (
+    "2. Vowel combinations and consonant combinations"
+)
+PMP_BASIC_GERMAN_SECTION_TITLE = "Wortschatz (p.9)"
 
 
 class TestPmpBasicGermanFlashcards:
@@ -45,6 +49,8 @@ class TestPmpBasicGermanFlashcards:
             PMP_BASIC_GERMAN_STUDY_DECK_ID,
             PMP_BASIC_GERMAN_CHAPTER_ID,
             PMP_BASIC_GERMAN_SECTION_ID,
+            PMP_BASIC_GERMAN_CHAPTER_TITLE,
+            PMP_BASIC_GERMAN_SECTION_TITLE,
         )
 
         assert result == [
@@ -57,6 +63,8 @@ class TestPmpBasicGermanFlashcards:
                     side_b_audio=None,
                     chapter_id=PMP_BASIC_GERMAN_CHAPTER_ID,
                     section_id=PMP_BASIC_GERMAN_SECTION_ID,
+                    chapter_title=PMP_BASIC_GERMAN_CHAPTER_TITLE,
+                    section_title=PMP_BASIC_GERMAN_SECTION_TITLE,
                 )
             ),
             Flashcard(
@@ -68,6 +76,8 @@ class TestPmpBasicGermanFlashcards:
                     side_b_audio=None,
                     chapter_id=PMP_BASIC_GERMAN_CHAPTER_ID,
                     section_id=PMP_BASIC_GERMAN_SECTION_ID,
+                    chapter_title=PMP_BASIC_GERMAN_CHAPTER_TITLE,
+                    section_title=PMP_BASIC_GERMAN_SECTION_TITLE,
                 )
             ),
         ]
@@ -91,14 +101,14 @@ class TestPmpBasicGermanFlashcards:
             PMP_BASIC_GERMAN_FLASHCARDS_MENU_ID: [
                 MenuOption(
                     PMP_BASIC_GERMAN_CHAPTER_ID,
-                    "2. Vowel combinations and consonant combinations",
+                    PMP_BASIC_GERMAN_CHAPTER_TITLE,
                     "N/A",
                 )
             ],
             PMP_BASIC_GERMAN_CHAPTER_ID: [
                 MenuOption(
                     PMP_BASIC_GERMAN_SECTION_ID,
-                    "Wortschatz (p.9)",
+                    PMP_BASIC_GERMAN_SECTION_TITLE,
                     "N/A",
                 )
             ],
@@ -124,6 +134,8 @@ class TestPmpBasicGermanFlashcards:
                 None,
                 PMP_BASIC_GERMAN_CHAPTER_ID,
                 PMP_BASIC_GERMAN_SECTION_ID,
+                PMP_BASIC_GERMAN_CHAPTER_TITLE,
+                PMP_BASIC_GERMAN_SECTION_TITLE,
             )
         )
         requested_decks = []
@@ -138,9 +150,19 @@ class TestPmpBasicGermanFlashcards:
             menu_id,
             chapter_id,
             section_id,
+            chapter_title,
+            section_title,
             timeout,
         ):
-            requested_decks.append((menu_id, chapter_id, section_id))
+            requested_decks.append(
+                (
+                    menu_id,
+                    chapter_id,
+                    section_id,
+                    chapter_title,
+                    section_title,
+                )
+            )
             return [expected_flashcard]
 
         monkeypatch.setattr(
@@ -159,11 +181,11 @@ class TestPmpBasicGermanFlashcards:
             chapters=[
                 Chapter(
                     chapter_id=PMP_BASIC_GERMAN_CHAPTER_ID,
-                    title="2. Vowel combinations and consonant combinations",
+                    title=PMP_BASIC_GERMAN_CHAPTER_TITLE,
                     sections=[
                         Section(
                             section_id=PMP_BASIC_GERMAN_SECTION_ID,
-                            title="Wortschatz (p.9)",
+                            title=PMP_BASIC_GERMAN_SECTION_TITLE,
                             flashcards=[expected_flashcard],
                         )
                     ],
@@ -175,6 +197,8 @@ class TestPmpBasicGermanFlashcards:
                 PMP_BASIC_GERMAN_STUDY_DECK_ID,
                 PMP_BASIC_GERMAN_CHAPTER_ID,
                 PMP_BASIC_GERMAN_SECTION_ID,
+                PMP_BASIC_GERMAN_CHAPTER_TITLE,
+                PMP_BASIC_GERMAN_SECTION_TITLE,
             )
         ]
 
@@ -188,6 +212,8 @@ class TestPmpBasicGermanFlashcards:
                 None,
                 10,
                 11,
+                "Chapter 1",
+                "Wortschatz (p.9)",
             )
         )
 
@@ -246,7 +272,13 @@ class TestPmpBasicGermanFlashcards:
         )
 
         with pytest.raises(ValueError, match=message):
-            scraper.get_flashcard_deck(23947, 1550, 11267)
+            scraper.get_flashcard_deck(
+                23947,
+                1550,
+                11267,
+                PMP_BASIC_GERMAN_CHAPTER_TITLE,
+                PMP_BASIC_GERMAN_SECTION_TITLE,
+            )
 
     def test_reports_when_a_book_has_no_flashcards_menu(self, monkeypatch):
         monkeypatch.setattr(

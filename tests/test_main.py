@@ -22,6 +22,8 @@ def make_deck(title: str, front: str, back: str) -> Deck:
             side_b_audio=None,
             chapter_id=10,
             section_id=11,
+            chapter_title="Chapter",
+            section_title="Section",
         )
     )
     return Deck(

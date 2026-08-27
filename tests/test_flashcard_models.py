@@ -15,6 +15,8 @@ def make_flashcard(
             side_b_audio=None,
             chapter_id=chapter_id,
             section_id=section_id,
+            chapter_title=f"Chapter {chapter_id}",
+            section_title=f"Section {section_id}",
         )
     )
 
@@ -52,6 +54,8 @@ class TestDeckHierarchy:
             side_b_audio=None,
             chapter_id=1550,
             section_id=11267,
+            chapter_title="2. Vowel combinations and consonant combinations",
+            section_title="Wortschatz (p.9)",
         )
         flashcard = Flashcard(card=source_card)
 
@@ -63,6 +67,8 @@ class TestDeckHierarchy:
             "SideAAudio": "https://example.com/ich.mp3",
             "SideBAudio": "",
             "SourceCardID": "354760",
+            "Chapter": "2. Vowel combinations and consonant combinations",
+            "Section": "Wortschatz (p.9)",
             "ChapterID": "1550",
             "SectionID": "11267",
         }

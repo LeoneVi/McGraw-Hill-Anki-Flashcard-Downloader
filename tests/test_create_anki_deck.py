@@ -22,6 +22,8 @@ def make_pmp_basic_german_deck() -> Deck:
             side_b_audio=None,
             chapter_id=1550,
             section_id=11267,
+            chapter_title="2. Vowel combinations and consonant combinations",
+            section_title="Wortschatz (p.9)",
         )
     )
     return Deck(
@@ -73,6 +75,22 @@ class TestCreateAnkiDeck:
             assert collection.note_count() == 1
             assert collection.card_count() == 1
             assert collection.decks.id_for_name("PMP Basic German") is not None
+
+            note = collection.get_note(collection.find_notes("")[0])
+            assert note["Front"] == "ich"
+            assert note["Back"] == "I"
+            assert note["Chapter"] == (
+                "2. Vowel combinations and consonant combinations"
+            )
+            assert note["Section"] == "Wortschatz (p.9)"
+            assert set(note.tags) == {
+                "mhe::chapter::2._Vowel_combinations_and_consonant_combinations",
+                "mhe::section::Wortschatz_(p.9)",
+            }
+
+            template = note.note_type()["tmpls"][0]
+            assert template["qfmt"] == "{{Front}}"
+            assert template["afmt"] == "{{FrontSide}}<hr id=answer>{{Back}}"
         finally:
             collection.close()
 

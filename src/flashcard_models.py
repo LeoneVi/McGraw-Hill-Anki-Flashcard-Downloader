@@ -15,6 +15,8 @@ class Card:
     side_b_audio: str | None
     chapter_id: int
     section_id: int
+    chapter_title: str
+    section_title: str
 
 
 @dataclass(frozen=True)
@@ -47,6 +49,8 @@ class Flashcard:
             "SideAAudio": self.front_audio or "",
             "SideBAudio": self.back_audio or "",
             "SourceCardID": str(self.card.card_id),
+            "Chapter": self.card.chapter_title,
+            "Section": self.card.section_title,
             "ChapterID": str(self.card.chapter_id),
             "SectionID": str(self.card.section_id),
         }
