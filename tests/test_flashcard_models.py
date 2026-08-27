@@ -17,6 +17,7 @@ def make_flashcard(
             section_id=section_id,
             chapter_title=f"Chapter {chapter_id}",
             section_title=f"Section {section_id}",
+            source="Flashcards",
         )
     )
 
@@ -56,11 +57,23 @@ class TestDeckHierarchy:
             section_id=11267,
             chapter_title="2. Vowel combinations and consonant combinations",
             section_title="Wortschatz (p.9)",
+            source="Flashcards",
+            tts_audio=True,
+            side_a_language="de-DE",
+            side_b_language="en-US",
+            tts_side_a="ich",
+            tts_side_b="I",
         )
         flashcard = Flashcard(card=source_card)
 
         assert flashcard.front == "ich"
         assert flashcard.back == "I"
+        assert flashcard.side_a_audio == "https://example.com/ich.mp3"
+        assert flashcard.side_b_audio is None
+        assert flashcard.tts_audio is True
+        assert flashcard.tts_side_a == "ich"
+        assert flashcard.tts_side_b == "I"
+        assert flashcard.source == "Flashcards"
         assert flashcard.anki_fields() == {
             "Front": "ich",
             "Back": "I",
@@ -71,4 +84,5 @@ class TestDeckHierarchy:
             "Section": "Wortschatz (p.9)",
             "ChapterID": "1550",
             "SectionID": "11267",
+            "Source": "Flashcards",
         }

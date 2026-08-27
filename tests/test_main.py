@@ -24,6 +24,7 @@ def make_deck(title: str, front: str, back: str) -> Deck:
             section_id=11,
             chapter_title="Chapter",
             section_title="Section",
+            source="Flashcards",
         )
     )
     return Deck(

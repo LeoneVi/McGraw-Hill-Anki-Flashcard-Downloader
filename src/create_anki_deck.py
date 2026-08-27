@@ -29,6 +29,7 @@ NOTETYPE_FIELDS = (
     "Section",
     "ChapterID",
     "SectionID",
+    "Source",
 )
 
 
@@ -118,7 +119,9 @@ def _create_notetype(collection: Collection):
 
     template = collection.models.new_template("Front to Back")
     template["qfmt"] = "{{Front}}{{SideAAudio}}"
-    template["afmt"] = "{{FrontSide}}<hr id=answer>{{Back}}"
+    template["afmt"] = (
+        "{{FrontSide}}<hr id=answer>{{Back}}{{SideBAudio}}"
+    )
     collection.models.add_template(notetype, template)
 
     notetype["id"] = _stable_integer_id("notetype", NOTETYPE_NAME)
@@ -151,7 +154,13 @@ def _add_flashcard_note(
         timeout,
         downloaded_audio,
     )
-    fields["SideBAudio"] = ""
+    fields["SideBAudio"] = _audio_reference(
+        collection,
+        flashcard,
+        "b",
+        timeout,
+        downloaded_audio,
+    )
     for field_name, value in fields.items():
         note[field_name] = value
 
@@ -159,6 +168,7 @@ def _add_flashcard_note(
     note.tags = [
         f"mhe::chapter::{_anki_tag_component(flashcard.card.chapter_title)}",
         f"mhe::section::{_anki_tag_component(flashcard.card.section_title)}",
+        f"mhe::source::{_anki_tag_component(flashcard.card.source)}",
     ]
     collection.add_note(note, deck_id)
 

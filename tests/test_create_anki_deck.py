@@ -19,6 +19,7 @@ def make_pmp_basic_german_deck(
     side_a_audio: str | None = None,
     side_b_audio: str | None = None,
     tts_audio: bool = True,
+    source: str = "Flashcards",
 ) -> Deck:
     flashcard = Flashcard(
         Card(
@@ -31,6 +32,7 @@ def make_pmp_basic_german_deck(
             section_id=11267,
             chapter_title="2. Vowel combinations and consonant combinations",
             section_title="Wortschatz (p.9)",
+            source=source,
             tts_audio=tts_audio,
             side_a_language="de-DE",
             side_b_language="en-US",
@@ -92,19 +94,25 @@ class TestCreateAnkiDeck:
             assert note["SideAAudio"] == (
                 "[anki:tts lang=de_DE]ich[/anki:tts]"
             )
-            assert note["SideBAudio"] == ""
+            assert note["SideBAudio"] == (
+                "[anki:tts lang=en_US]I[/anki:tts]"
+            )
             assert note["Chapter"] == (
                 "2. Vowel combinations and consonant combinations"
             )
             assert note["Section"] == "Wortschatz (p.9)"
+            assert note["Source"] == "Flashcards"
             assert set(note.tags) == {
                 "mhe::chapter::2._Vowel_combinations_and_consonant_combinations",
                 "mhe::section::Wortschatz_(p.9)",
+                "mhe::source::Flashcards",
             }
 
             template = note.note_type()["tmpls"][0]
             assert template["qfmt"] == "{{Front}}{{SideAAudio}}"
-            assert template["afmt"] == "{{FrontSide}}<hr id=answer>{{Back}}"
+            assert template["afmt"] == (
+                "{{FrontSide}}<hr id=answer>{{Back}}{{SideBAudio}}"
+            )
 
             card = note.cards()[0]
             assert card.question_av_tags() == [
@@ -116,7 +124,15 @@ class TestCreateAnkiDeck:
                     other_args=[],
                 )
             ]
-            assert card.answer_av_tags() == []
+            assert card.answer_av_tags() == [
+                TTSTag(
+                    field_text="I",
+                    lang="en_US",
+                    voices=[],
+                    speed=1.0,
+                    other_args=[],
+                )
+            ]
         finally:
             collection.close()
 
@@ -126,11 +142,10 @@ class TestCreateAnkiDeck:
         tmp_path,
     ):
         audio_bytes = b"ID3\x04\x00\x00test-mp3-data"
-        captured_download = {}
+        captured_downloads = []
 
         def fake_get_bytes(url, timeout):
-            captured_download["url"] = url
-            captured_download["timeout"] = timeout
+            captured_downloads.append((url, timeout))
             return audio_bytes
 
         monkeypatch.setattr(creator, "get_bytes", fake_get_bytes)
@@ -139,14 +154,21 @@ class TestCreateAnkiDeck:
                 side_a_audio="https://example.com/audio/ich.mp3",
                 side_b_audio="https://example.com/audio/I.mp3",
                 tts_audio=False,
+                source="Audio",
             ),
             tmp_path / "recorded.apkg",
         )
 
-        assert captured_download == {
-            "url": "https://example.com/audio/ich.mp3",
-            "timeout": creator.DEFAULT_TIMEOUT_SECONDS,
-        }
+        assert captured_downloads == [
+            (
+                "https://example.com/audio/ich.mp3",
+                creator.DEFAULT_TIMEOUT_SECONDS,
+            ),
+            (
+                "https://example.com/audio/I.mp3",
+                creator.DEFAULT_TIMEOUT_SECONDS,
+            ),
+        ]
 
         collection = Collection(str(tmp_path / "recorded-verify.anki2"))
         try:
@@ -161,16 +183,23 @@ class TestCreateAnkiDeck:
                 )
             )
             note = collection.get_note(collection.find_notes("")[0])
-            filename = "mhe_354760_side_a.mp3"
+            side_a_filename = "mhe_354760_side_a.mp3"
+            side_b_filename = "mhe_354760_side_b.mp3"
 
-            assert note["SideAAudio"] == f"[sound:{filename}]"
-            assert note["SideBAudio"] == ""
+            assert note["Source"] == "Audio"
+            assert "mhe::source::Audio" in note.tags
+            assert note["SideAAudio"] == f"[sound:{side_a_filename}]"
+            assert note["SideBAudio"] == f"[sound:{side_b_filename}]"
             assert note.cards()[0].question_av_tags() == [
-                SoundOrVideoTag(filename=filename)
+                SoundOrVideoTag(filename=side_a_filename)
             ]
-            media_path = Path(collection.media.dir()) / filename
-            assert media_path.is_file()
-            assert media_path.read_bytes() == audio_bytes
+            assert note.cards()[0].answer_av_tags() == [
+                SoundOrVideoTag(filename=side_b_filename)
+            ]
+            for filename in (side_a_filename, side_b_filename):
+                media_path = Path(collection.media.dir()) / filename
+                assert media_path.is_file()
+                assert media_path.read_bytes() == audio_bytes
             assert collection.media.check().missing == []
         finally:
             collection.close()

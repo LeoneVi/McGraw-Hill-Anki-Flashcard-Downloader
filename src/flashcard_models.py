@@ -4,6 +4,10 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 
 
+FLASHCARDS_SOURCE = "Flashcards"
+AUDIO_SOURCE = "Audio"
+
+
 @dataclass(frozen=True)
 class Card:
     """One raw McGraw-Hill card with its source metadata."""
@@ -17,6 +21,7 @@ class Card:
     section_id: int
     chapter_title: str
     section_title: str
+    source: str
     tts_audio: bool = False
     side_a_language: str | None = None
     side_b_language: str | None = None
@@ -39,12 +44,36 @@ class Flashcard:
         return self.card.side_b
 
     @property
-    def front_audio(self) -> str | None:
+    def side_a_audio(self) -> str | None:
         return self.card.side_a_audio
 
     @property
-    def back_audio(self) -> str | None:
+    def side_b_audio(self) -> str | None:
         return self.card.side_b_audio
+
+    @property
+    def tts_audio(self) -> bool:
+        return self.card.tts_audio
+
+    @property
+    def tts_side_a(self) -> str | None:
+        return self.card.tts_side_a
+
+    @property
+    def tts_side_b(self) -> str | None:
+        return self.card.tts_side_b
+
+    @property
+    def source(self) -> str:
+        return self.card.source
+
+    @property
+    def front_audio(self) -> str | None:
+        return self.side_a_audio
+
+    @property
+    def back_audio(self) -> str | None:
+        return self.side_b_audio
 
     def anki_fields(self) -> dict[str, str]:
         """Return the note fields stored in the generated Anki package."""
@@ -58,6 +87,7 @@ class Flashcard:
             "Section": self.card.section_title,
             "ChapterID": str(self.card.chapter_id),
             "SectionID": str(self.card.section_id),
+            "Source": self.card.source,
         }
 
 
