@@ -134,9 +134,8 @@ def main() -> None:
                 selected_book.menu_id,
                 selected_book.title,
             )
-            output_path = Path(__file__).parent / "output" / package_filename(
-                deck.title
-            )
+            project_root = Path(__file__).resolve().parent.parent
+            output_path = project_root / "output" / package_filename(deck.title)
             package_path = create_anki_package(deck, output_path)
             break
     except urllib.error.URLError as error:

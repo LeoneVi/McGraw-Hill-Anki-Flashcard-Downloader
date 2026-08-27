@@ -105,6 +105,7 @@ class TestLanguageAndBookSelection:
         ]
         received_language_ids = []
         received_book_ids = []
+        received_output_paths = []
 
         monkeypatch.setattr(
             application,
@@ -141,18 +142,26 @@ class TestLanguageAndBookSelection:
             "get_flashcards_for_book",
             fake_get_flashcards_for_book,
         )
+
+        def fake_create_anki_package(deck, output_path):
+            received_output_paths.append(output_path)
+            return Path("/tmp/Complete_Medical_Spanish.apkg")
+
         monkeypatch.setattr(
             application,
             "create_anki_package",
-            lambda deck, output_path: Path(
-                "/tmp/Complete_Medical_Spanish.apkg"
-            ),
+            fake_create_anki_package,
         )
 
         application.main()
 
         assert received_language_ids == [5]
         assert received_book_ids == [(43, "Complete Medical Spanish")]
+        assert received_output_paths == [
+            Path(application.__file__).resolve().parent.parent
+            / "output"
+            / "Complete_Medical_Spanish.apkg"
+        ]
         assert capsys.readouterr().out == (
             "\nScraping flashcards for Complete Medical Spanish...\n"
             "\nSelected language: Spanish\n"
