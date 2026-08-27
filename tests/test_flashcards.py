@@ -27,6 +27,11 @@ class TestPmpBasicGermanFlashcards:
                 "SideB": "I",
                 "SideAAudio": None,
                 "SideBAudio": None,
+                "SideALabel": "de-DE",
+                "SideBLabel": "en-US",
+                "TTSAudio": True,
+                "TTSSideA": None,
+                "TTSSideB": None,
             },
             {
                 "Card_ID": 354761,
@@ -65,6 +70,9 @@ class TestPmpBasicGermanFlashcards:
                     section_id=PMP_BASIC_GERMAN_SECTION_ID,
                     chapter_title=PMP_BASIC_GERMAN_CHAPTER_TITLE,
                     section_title=PMP_BASIC_GERMAN_SECTION_TITLE,
+                    tts_audio=True,
+                    side_a_language="de-DE",
+                    side_b_language="en-US",
                 )
             ),
             Flashcard(
@@ -256,6 +264,31 @@ class TestPmpBasicGermanFlashcards:
                 ],
                 "SideAAudio",
                 id="card-has-invalid-audio",
+            ),
+            pytest.param(
+                [
+                    {
+                        "Card_ID": 1,
+                        "SideA": "ich",
+                        "SideB": "I",
+                        "TTSAudio": "yes",
+                    }
+                ],
+                "TTSAudio",
+                id="card-has-invalid-tts-flag",
+            ),
+            pytest.param(
+                [
+                    {
+                        "Card_ID": 1,
+                        "SideA": "ich",
+                        "SideB": "I",
+                        "TTSAudio": True,
+                        "SideALabel": 123,
+                    }
+                ],
+                "SideALabel",
+                id="card-has-invalid-tts-language",
             ),
         ],
     )

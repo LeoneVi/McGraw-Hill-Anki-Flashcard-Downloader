@@ -25,6 +25,13 @@ def _optional_text(record: dict, field_name: str) -> str | None:
     return value
 
 
+def _tts_enabled(record: dict) -> bool:
+    value = record.get("TTSAudio", False)
+    if not isinstance(value, bool):
+        raise ValueError("A flashcard has invalid TTSAudio data.")
+    return value
+
+
 def get_flashcard_deck(
     menu_id: int,
     chapter_id: int,
@@ -66,6 +73,11 @@ def get_flashcard_deck(
             section_id=section_id,
             chapter_title=chapter_title,
             section_title=section_title,
+            tts_audio=_tts_enabled(card_data),
+            side_a_language=_optional_text(card_data, "SideALabel"),
+            side_b_language=_optional_text(card_data, "SideBLabel"),
+            tts_side_a=_optional_text(card_data, "TTSSideA"),
+            tts_side_b=_optional_text(card_data, "TTSSideB"),
         )
         flashcards.append(Flashcard(card=card))
 

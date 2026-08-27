@@ -26,6 +26,11 @@ class MenuOption:
 
 def get_json(url: str, timeout: int = DEFAULT_TIMEOUT_SECONDS):
     """Download and decode one JSON response from the Language Lab API."""
+    return json.loads(get_bytes(url, timeout).decode("utf-8"))
+
+
+def get_bytes(url: str, timeout: int = DEFAULT_TIMEOUT_SECONDS) -> bytes:
+    """Download raw bytes using the shared verified HTTPS configuration."""
     request = urllib.request.Request(
         url,
         headers={"User-Agent": "McGraw-Hill-Anki-Flashcard-Download/0.1"},
@@ -36,7 +41,7 @@ def get_json(url: str, timeout: int = DEFAULT_TIMEOUT_SECONDS):
         timeout=timeout,
         context=HTTPS_CONTEXT,
     ) as response:
-        return json.loads(response.read().decode("utf-8"))
+        return response.read()
 
 
 def get_menu_options(

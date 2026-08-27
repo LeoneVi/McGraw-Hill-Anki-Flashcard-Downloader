@@ -17,6 +17,11 @@ class Card:
     section_id: int
     chapter_title: str
     section_title: str
+    tts_audio: bool = False
+    side_a_language: str | None = None
+    side_b_language: str | None = None
+    tts_side_a: str | None = None
+    tts_side_b: str | None = None
 
 
 @dataclass(frozen=True)
