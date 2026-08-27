@@ -22,6 +22,8 @@ class Card:
     chapter_title: str
     section_title: str
     source: str
+    instruction: str | None = None
+    side_a_content: str | None = None
     tts_audio: bool = False
     side_a_language: str | None = None
     side_b_language: str | None = None
@@ -37,6 +39,8 @@ class Flashcard:
 
     @property
     def front(self) -> str:
+        if self.card.side_a_content is not None:
+            return self.card.side_a_content
         return self.card.side_a
 
     @property
@@ -68,6 +72,10 @@ class Flashcard:
         return self.card.source
 
     @property
+    def instruction(self) -> str | None:
+        return self.card.instruction
+
+    @property
     def front_audio(self) -> str | None:
         return self.side_a_audio
 
@@ -80,6 +88,7 @@ class Flashcard:
         return {
             "Front": self.front,
             "Back": self.back,
+            "Instruction": self.instruction or "",
             "SideAAudio": self.front_audio or "",
             "SideBAudio": self.back_audio or "",
             "SourceCardID": str(self.card.card_id),

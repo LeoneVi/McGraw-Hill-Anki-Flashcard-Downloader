@@ -22,6 +22,7 @@ NOTETYPE_NAME = "McGraw-Hill Language Lab"
 NOTETYPE_FIELDS = (
     "Front",
     "Back",
+    "Instruction",
     "SideAAudio",
     "SideBAudio",
     "SourceCardID",
@@ -86,7 +87,9 @@ def _audio_reference(
     if side == "a":
         audio_url = card.side_a_audio
         language = card.side_a_language
-        tts_text = card.tts_side_a if card.tts_side_a is not None else card.side_a
+        tts_text = (
+            card.tts_side_a if card.tts_side_a is not None else flashcard.front
+        )
     else:
         audio_url = card.side_b_audio
         language = card.side_b_language
@@ -118,11 +121,21 @@ def _create_notetype(collection: Collection):
         collection.models.add_field(notetype, field)
 
     template = collection.models.new_template("Front to Back")
-    template["qfmt"] = "{{Front}}{{SideAAudio}}"
+    template["qfmt"] = (
+        '{{#Instruction}}<div class="instruction">{{Instruction}}</div>'
+        "{{/Instruction}}{{Front}}{{SideAAudio}}"
+    )
     template["afmt"] = (
         "{{FrontSide}}<hr id=answer>{{Back}}{{SideBAudio}}"
     )
     collection.models.add_template(notetype, template)
+
+    notetype["css"] += """
+.instruction {
+    margin-bottom: 1em;
+    font-style: italic;
+}
+"""
 
     notetype["id"] = _stable_integer_id("notetype", NOTETYPE_NAME)
     collection.models.update(notetype)

@@ -35,6 +35,7 @@ FLASHCARDS_MENU_TITLE = "Flashcards"
 AUDIO_MENU_TITLE = "Audio"
 STUDY_MODE_DECK_TYPE = "Flashcards: Study Mode"
 RECORD_YOURSELF_DECK_TYPE = "Record Yourself"
+INSTRUCTION_SEPARATOR = re.compile(r"(?:<br\s*/?>\s*){2,}", re.IGNORECASE)
 
 
 def _optional_text(record: dict, field_name: str) -> str | None:
@@ -63,6 +64,28 @@ def _matching_key(title: str) -> str:
     return " ".join(without_html.split()).casefold()
 
 
+def _instruction_and_first_content(
+    payload: list,
+    source: str,
+) -> tuple[str | None, str | None]:
+    if not payload or not isinstance(payload[0], dict):
+        return None, None
+
+    first_side_a = payload[0].get("SideA")
+    if not isinstance(first_side_a, str):
+        return None, None
+
+    parts = INSTRUCTION_SEPARATOR.split(first_side_a, maxsplit=1)
+    if len(parts) != 2 or not parts[0].strip():
+        return None, None
+    if source != AUDIO_SOURCE and not re.search(
+        r"<(?:em|i)\b", parts[0], re.IGNORECASE
+    ):
+        return None, None
+
+    return parts[0].strip(), parts[1].strip()
+
+
 def _get_card_deck(
     url: str,
     chapter_id: int,
@@ -78,8 +101,12 @@ def _get_card_deck(
     if not isinstance(payload, list):
         raise ValueError("Expected the card API to return a list.")
 
+    instruction, first_side_a_content = _instruction_and_first_content(
+        payload,
+        source,
+    )
     cards = []
-    for card_data in payload:
+    for index, card_data in enumerate(payload):
         if (
             not isinstance(card_data, dict)
             or not isinstance(card_data.get("Card_ID"), int)
@@ -112,6 +139,14 @@ def _get_card_deck(
             chapter_title=chapter_title,
             section_title=section_title,
             source=source,
+            instruction=instruction,
+            side_a_content=(
+                first_side_a_content
+                if instruction is not None and index == 0
+                else card_data["SideA"]
+                if instruction is not None
+                else None
+            ),
             tts_audio=_tts_enabled(card_data),
             side_a_language=_optional_text(card_data, "SideALabel"),
             side_b_language=_optional_text(card_data, "SideBLabel"),

@@ -91,6 +91,7 @@ class TestCreateAnkiDeck:
             note = collection.get_note(collection.find_notes("")[0])
             assert note["Front"] == "ich"
             assert note["Back"] == "I"
+            assert note["Instruction"] == ""
             assert note["SideAAudio"] == (
                 "[anki:tts lang=de_DE]ich[/anki:tts]"
             )
@@ -109,10 +110,14 @@ class TestCreateAnkiDeck:
             }
 
             template = note.note_type()["tmpls"][0]
-            assert template["qfmt"] == "{{Front}}{{SideAAudio}}"
+            assert template["qfmt"] == (
+                '{{#Instruction}}<div class="instruction">{{Instruction}}</div>'
+                "{{/Instruction}}{{Front}}{{SideAAudio}}"
+            )
             assert template["afmt"] == (
                 "{{FrontSide}}<hr id=answer>{{Back}}{{SideBAudio}}"
             )
+            assert "font-style: italic" in note.note_type()["css"]
 
             card = note.cards()[0]
             assert card.question_av_tags() == [

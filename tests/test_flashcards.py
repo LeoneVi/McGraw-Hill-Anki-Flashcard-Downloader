@@ -188,6 +188,65 @@ class TestPmpBasicGermanFlashcards:
             "timeout": scraper.DEFAULT_TIMEOUT_SECONDS,
         }
 
+    @pytest.mark.parametrize(
+        "instruction",
+        [
+            (
+                "<em>For each blank provided fill in the correct form of </em>"
+                "wer (wer, wen, wem, wessen)."
+            ),
+            "A, B, oder C?",
+        ],
+        ids=["partially-italic-source", "plain-text-source"],
+    )
+    def test_propagates_the_first_card_instruction_through_its_set(
+        self,
+        monkeypatch,
+        instruction,
+    ):
+        first_side_a = f"{instruction}<br><br>1. ___ seht ihr am Wochenende?"
+        payload = [
+            {
+                "Card_ID": 355225,
+                "SideAAudio": None,
+                "ExampleAudio": "1260120902/BGE%2014-01-01.mp3",
+                "SideA": first_side_a,
+                "SideB": "1. Wen seht ihr am Wochenende?",
+            },
+            {
+                "Card_ID": 355226,
+                "SideAAudio": None,
+                "ExampleAudio": "1260120902/BGE%2014-01-02.mp3",
+                "SideA": "2. An ___ schreibst du den Brief?",
+                "SideB": "2. An wen schreibst du den Brief?",
+            },
+        ]
+        monkeypatch.setattr(
+            scraper,
+            "get_json",
+            lambda url, timeout: payload,
+        )
+
+        result = scraper.get_audio_deck(
+            menu_id=75042,
+            chapter_id=33438,
+            section_id=75042,
+            chapter_title="14. Interrogative pronouns",
+            section_title="Übung 14.1",
+        )
+
+        assert [flashcard.instruction for flashcard in result] == [
+            instruction,
+            instruction,
+        ]
+        assert result[0].card.side_a == first_side_a
+        assert result[1].card.side_a == "2. An ___ schreibst du den Brief?"
+        assert [flashcard.front for flashcard in result] == [
+            "1. ___ seht ihr am Wochenende?",
+            "2. An ___ schreibst du den Brief?",
+        ]
+        assert result[1].anki_fields()["Instruction"] == instruction
+
     def test_merges_matching_flashcard_and_audio_hierarchy(self, monkeypatch):
         audio_menu_id = 31056
         audio_chapter_id = 33426

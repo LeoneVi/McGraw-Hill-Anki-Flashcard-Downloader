@@ -77,6 +77,7 @@ class TestDeckHierarchy:
         assert flashcard.anki_fields() == {
             "Front": "ich",
             "Back": "I",
+            "Instruction": "",
             "SideAAudio": "https://example.com/ich.mp3",
             "SideBAudio": "",
             "SourceCardID": "354760",
