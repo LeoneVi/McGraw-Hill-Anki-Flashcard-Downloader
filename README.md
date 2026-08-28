@@ -2,8 +2,6 @@
 
 Create an importable Anki deck from a book in the McGraw-Hill Language Lab. The program provides an interactive terminal menu for choosing a language, choosing a book, configuring text-to-speech, and selecting where the finished `.apkg` file should be saved.
 
-The project is currently developed and tested primarily with **PMP Basic German**. Other Language Lab books may work, but their layouts and data have not all been verified yet.
-
 ## Requirements
 
 - Python 3.11
